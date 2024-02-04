@@ -15,13 +15,32 @@ exports.allPosts_get = asyncHandler(async (req, res, next) => {
 	if (posts) {
 		res.json(posts);
 	} else {
-		res.sendStatus(403);
+		res.sendStatus(404);
 	}
 });
 
 exports.post_get = asyncHandler(async (req, res, next) => {
 	// get a post
-	return res.send("Not implemented");
+	const post = await Post.find({ _id: req.params.postId })
+		.populate({
+			path: "comments",
+			populate: {
+				path: "posted_by",
+				select: "username",
+			},
+		})
+		.populate({
+			path: "posted_by",
+			select: "username",
+		})
+		.exec();
+
+	// check if array is empty
+	if (post.length) {
+		res.json(post);
+	} else {
+		res.sendStatus(404);
+	}
 });
 
 exports.createPost_post = asyncHandler(async (req, res, next) => {

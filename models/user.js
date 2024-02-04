@@ -17,11 +17,12 @@ const userSchema = new Schema({
 	password: {
 		type: String,
 		max: 128,
+		required: true,
 	},
 	role: { type: String, required: true, enum: ["guest", "admin"] },
 });
 
-UserSchema.pre("save", function (next) {
+userSchema.pre("save", function (next) {
 	bcrypt.genSalt(10, (err, salt) => {
 		bcrypt.hash(this.password, salt, (err, hash) => {
 			this.password = hash;

@@ -5,6 +5,7 @@ const express = require("express");
 const path = require("path");
 const cookieParser = require("cookie-parser");
 const logger = require("morgan");
+const jwt = require("jsonwebtoken");
 
 const postRouter = require("./routes/post");
 const userRouter = require("./routes/user");

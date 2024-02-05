@@ -12,7 +12,21 @@ const userRouter = require("./routes/user");
 const KEY = process.env.KEY;
 const app = express();
 
-// view engine setup
+const verifyToken = async (req, res, next) => {
+	const authorization = req.headers["authorization"];
+	if (!authorization) {
+		req.token = null;
+		return next();
+	}
+
+	const token = authorization.split(" ")[1];
+
+	if (typeof token === "undefined") {
+		req.token = null;
+	}
+	req.token = token;
+	return next();
+};
 
 mongoose.connect(KEY).catch((err) => {
 	console.log(err);
@@ -26,6 +40,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
+
+app.use(verifyToken);
 
 app.use("/posts", postRouter);
 app.use("/u", userRouter);

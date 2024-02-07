@@ -177,10 +177,73 @@ exports.createComment_post = [
 	}),
 ];
 
-exports.editPost_put = asyncHandler(async (req, res, next) => {
-	// edit a post
-	return res.send("Not implemented");
-});
+exports.editPost_put = [
+	param("postId")
+		.escape()
+		.custom(async (v) => {
+			if (!mongoose.isValidObjectId(v)) {
+				throw new Error("Post not found");
+			}
+
+			const post = await Post.findOne({ _id: v }).exec();
+			if (!post) {
+				// post not found
+				throw new Error("Post not found");
+			}
+		}),
+	body("title")
+		.escape()
+		.isLength({ min: 1, max: 60 })
+		.withMessage("Invalid title length"),
+	body("body")
+		.escape()
+		.isLength({ min: 1, max: 1000 })
+		.withMessage("Invalid body length"),
+	asyncHandler(async (req, res, next) => {
+		// edit a post
+		const result = validationResult(req);
+
+		if (!result.isEmpty()) {
+			return res.json(result.array());
+		}
+
+		const postId = req.params.postId;
+		const requestedToken = req.token;
+
+		if (!requestedToken) {
+			// if token is null, it goes here
+			return res.sendStatus(401);
+		}
+
+		jwt.verify(
+			requestedToken,
+			process.env.PRIVATE_KEY,
+			async (err, decodedUser) => {
+				if (err) {
+					// invalid syntax
+					return res.sendStatus(401);
+				}
+
+				if (decodedUser.role !== "admin") {
+					return res.sendStatus(401);
+				}
+				const title = req.body.title;
+				const body = req.body.body;
+				const post = await Post.findOneAndUpdate(
+					{ _id: postId },
+					{ title: title, body: body },
+					{ new: true }
+				).exec();
+
+				if (post) {
+					res.json(post);
+				} else {
+					res.sendStatus(500);
+				}
+			}
+		);
+	}),
+];
 
 exports.removePost_remove = asyncHandler(async (req, res, next) => {
 	// remove a post and comments within the post

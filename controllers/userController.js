@@ -18,6 +18,7 @@ exports.addUser_post = [
 		}),
 	body("password")
 		.trim()
+		.isLength({ min: 6, max: 13 })
 		.matches(/^([\w-]+)$/)
 		.withMessage("Invalid password")
 		.escape(),

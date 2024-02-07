@@ -45,6 +45,9 @@ app.use(verifyToken);
 
 app.use("/posts", postRouter);
 app.use("/u", userRouter);
+app.get("*", (req, res, next) => {
+	return res.sendStatus(404);
+});
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

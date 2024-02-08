@@ -300,7 +300,81 @@ exports.removePost_remove = [
 	}),
 ];
 
-exports.removeComment_remove = asyncHandler(async (req, res, next) => {
-	// remove a comment
-	return res.send("Not implemented");
-});
+exports.removeComment_remove = [
+	param("postId")
+		.escape()
+		.custom(async (v) => {
+			if (!mongoose.isValidObjectId(v)) {
+				throw new Error("Post not found");
+			}
+
+			const post = await Post.findOne({ _id: v }).exec();
+			if (!post) {
+				// post not found
+				throw new Error("Post not found");
+			}
+		}),
+	param("commentId")
+		.escape()
+		.custom(async (v) => {
+			if (!mongoose.isValidObjectId(v)) {
+				throw new Error("Comment not found");
+			}
+
+			const comment = await Comment.findOne({ _id: v }).exec();
+			if (!comment) {
+				// post not found
+				throw new Error("Comment not found");
+			}
+		}),
+	asyncHandler(async (req, res, next) => {
+		// remove a comment
+		const result = validationResult(req);
+		const requestedToken = req.token;
+		if (!result.isEmpty()) {
+			return res.json(result.array({ onlyFirstError: true }));
+		}
+
+		if (!requestedToken) {
+			// if token is null, it goes here
+			return res.sendStatus(401);
+		}
+		const postId = req.params.postId;
+		const commentId = req.params.commentId;
+
+		jwt.verify(
+			requestedToken,
+			process.env.PRIVATE_KEY,
+			async (err, decodedUser) => {
+				if (err) {
+					// invalid syntax
+					return res.sendStatus(401);
+				}
+
+				if (decodedUser.role !== "admin") {
+					return res.sendStatus(401);
+				}
+
+				const commentInPostDeletionresult = await Post.updateOne(
+					{ _id: postId },
+					{ $pullAll: { comments: [{ _id: commentId }] } }
+				).exec();
+
+				if (!commentInPostDeletionresult.modifiedCount) {
+					// Check if the query has modified content
+					return res.sendStatus(404);
+				}
+
+				const commentDeletionResult = await Comment.deleteOne({
+					_id: commentId,
+				}).exec();
+
+				if (commentDeletionResult) {
+					return res.sendStatus(202);
+				} else {
+					return res.sendStatus(500);
+				}
+			}
+		);
+	}),
+];

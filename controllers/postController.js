@@ -245,10 +245,60 @@ exports.editPost_put = [
 	}),
 ];
 
-exports.removePost_remove = asyncHandler(async (req, res, next) => {
-	// remove a post and comments within the post
-	return res.send("Not implemented");
-});
+exports.removePost_remove = [
+	param("postId")
+		.escape()
+		.custom(async (v) => {
+			if (!mongoose.isValidObjectId(v)) {
+				throw new Error("Post not found");
+			}
+
+			const post = await Post.findOne({ _id: v }).exec();
+			if (!post) {
+				// post not found
+				throw new Error("Post not found");
+			}
+		}),
+	asyncHandler(async (req, res, next) => {
+		// remove a post and comments within the post
+		const result = validationResult(req);
+
+		if (!result.isEmpty()) {
+			return res.json(result.array());
+		}
+
+		const postId = req.params.postId;
+		const requestedToken = req.token;
+
+		if (!requestedToken) {
+			// if token is null, it goes here
+			return res.sendStatus(401);
+		}
+
+		jwt.verify(
+			requestedToken,
+			process.env.PRIVATE_KEY,
+			async (err, decodedUser) => {
+				if (err) {
+					// invalid syntax
+					return res.sendStatus(401);
+				}
+
+				if (decodedUser.role !== "admin") {
+					return res.sendStatus(401);
+				}
+
+				const deletedPost = await Post.findByIdAndDelete({ _id: postId });
+				if (deletedPost) {
+					await Comment.deleteMany({ _id: { $in: deletedPost.comments } });
+					return res.sendStatus(202);
+				} else {
+					return res.sendStatus(500);
+				}
+			}
+		);
+	}),
+];
 
 exports.removeComment_remove = asyncHandler(async (req, res, next) => {
 	// remove a comment

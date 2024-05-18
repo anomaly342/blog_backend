@@ -7,7 +7,7 @@ const { validationResult, body, param } = require("express-validator");
 const mongoose = require("mongoose");
 exports.allPosts_get = asyncHandler(async (req, res, next) => {
 	// get all posts
-	const posts = await Post.find({}, { comments: 0 })
+	const posts = await Post.find({}, { comments: 0, body: 0 })
 		.sort({ created: -1 })
 		.populate({
 			path: "posted_by",
@@ -24,7 +24,7 @@ exports.allPosts_get = asyncHandler(async (req, res, next) => {
 
 exports.post_get = asyncHandler(async (req, res, next) => {
 	// get a post
-	const post = await Post.find({ _id: req.params.postId })
+	const post = await Post.find({ title: req.params.postId.replace(/-/g, " ") })
 		.populate({
 			path: "comments",
 			populate: {
@@ -87,18 +87,21 @@ exports.createPost_post = [
 						posted_by: decodedUser._id,
 						created: new Date(),
 					});
+					try {
+						const savedPost = await post.save();
 
-					const savedPost = await post.save();
-
-					if (savedPost) {
-						res.json(savedPost);
-					} else {
-						// If it fails to upload to database
-						res.sendStatus(500);
+						if (savedPost) {
+							res.json(savedPost);
+						} else {
+							// If it fails to upload to database
+							res.sendStatus(500);
+						}
+					} catch (err) {
+						return res.sendStatus(500);
 					}
 				} else {
 					// user doesn't have admin rights
-					res.send("Posting is only reserved for admins");
+					res.status(401).send("Posting is only reserved for admins");
 				}
 			}
 		);
@@ -108,21 +111,14 @@ exports.createPost_post = [
 exports.createComment_post = [
 	param("postId")
 		.escape()
-		.custom(async (v) => {
-			if (!mongoose.isValidObjectId(v)) {
-				throw new Error("Post not found");
-			}
-
-			const post = await Post.findOne({ _id: v }).exec();
+		.custom(async (v, { req }) => {
+			const post = await Post.findOne({ title: v.replace(/-/g, " ") }).exec();
 			if (!post) {
 				// post not found
 				throw new Error("Post not found");
 			}
 		}),
-	body("content")
-		.escape()
-		.isLength({ min: 1, max: 500 })
-		.withMessage("Invalid length"),
+	body("content").isLength({ min: 1, max: 500 }).withMessage("Invalid length"),
 	asyncHandler(async (req, res, next) => {
 		// create a comment
 		const result = validationResult(req);
@@ -131,7 +127,7 @@ exports.createComment_post = [
 			return res.json(result.array({ onlyFirstError: true }));
 		}
 
-		const postId = req.params.postId;
+		const postId = req.params.postId.replace(/-/g, " ");
 		const requestedToken = req.token;
 
 		if (!requestedToken) {
@@ -162,8 +158,8 @@ exports.createComment_post = [
 				}
 
 				const post = await Post.findOneAndUpdate(
-					{ _id: postId },
-					{ $push: { comments: savedComment._id } },
+					{ title: postId },
+					{ $push: { comments: { $each: [savedComment._id], $position: 0 } } },
 					{ new: true }
 				).exec();
 
@@ -181,11 +177,7 @@ exports.editPost_put = [
 	param("postId")
 		.escape()
 		.custom(async (v) => {
-			if (!mongoose.isValidObjectId(v)) {
-				throw new Error("Post not found");
-			}
-
-			const post = await Post.findOne({ _id: v }).exec();
+			const post = await Post.findOne({ title: v.replace(/-/g, " ") }).exec();
 			if (!post) {
 				// post not found
 				throw new Error("Post not found");
@@ -207,7 +199,7 @@ exports.editPost_put = [
 			return res.json(result.array());
 		}
 
-		const postId = req.params.postId;
+		const postId = req.params.postId.replace(/-/g, " ");
 		const requestedToken = req.token;
 
 		if (!requestedToken) {
@@ -230,7 +222,7 @@ exports.editPost_put = [
 				const title = req.body.title;
 				const body = req.body.body;
 				const post = await Post.findOneAndUpdate(
-					{ _id: postId },
+					{ title: postId },
 					{ title: title, body: body },
 					{ new: true }
 				).exec();

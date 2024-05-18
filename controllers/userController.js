@@ -28,7 +28,7 @@ exports.addUser_post = [
 		const result = validationResult(req);
 
 		if (!result.isEmpty()) {
-			return res.json(result.array());
+			return res.status(403).json(result.array());
 		}
 
 		const user = new User({
@@ -38,20 +38,31 @@ exports.addUser_post = [
 		});
 
 		const savedUser = await user.save();
-
-		console.log(savedUser);
 		if (!savedUser) {
 			return res.sendStatus(403);
 		}
 
 		const auth = savedUser.toJSON(); // Remove a password field from the object
-		jwt.sign(auth, process.env.PRIVATE_KEY, (err, token) => {
-			if (err) {
-				return res.sendStatus(403);
-			} else {
-				return res.json(token);
+		jwt.sign(
+			auth,
+			process.env.PRIVATE_KEY,
+			{ expiresIn: "4d" },
+			(err, token) => {
+				if (err) {
+					return res.sendStatus(403);
+				} else {
+					console.log(savedUser);
+					return res
+						.cookie("token", token, {
+							path: "/",
+							httpOnly: true,
+							secure: true,
+							expires: new Date(Date.now() + 96 * 3600000),
+						})
+						.send("Suscess");
+				}
 			}
-		});
+		);
 	}),
 ];
 
@@ -78,7 +89,7 @@ exports.login_post = [
 		// for logging in
 		const result = validationResult(req);
 		if (!result.isEmpty()) {
-			return res.json(result.array());
+			return res.status(401).json(result.array());
 		}
 
 		const auth = req.user.toJSON(); // Remove a password field from the object
@@ -86,8 +97,37 @@ exports.login_post = [
 			if (err) {
 				return res.sendStatus(403);
 			} else {
-				return res.json(token);
+				return res
+					.cookie("token", token, {
+						path: "/",
+						httpOnly: true,
+						secure: true,
+						expires: new Date(Date.now() + 96 * 3600000),
+					})
+					.send("Suscess");
 			}
 		});
 	}),
 ];
+
+exports.loggedin_get = asyncHandler(async (req, res, next) => {
+	const token = req.token;
+	console.log(token);
+	if (!req.token) {
+		return res.sendStatus(401);
+	}
+
+	jwt.verify(token, process.env.PRIVATE_KEY, async (err, decodedUser) => {
+		if (err) {
+			// invalid syntax
+			return res.sendStatus(401);
+		} else {
+			delete decodedUser.password;
+			return res.status(202).json(decodedUser);
+		}
+	});
+});
+
+exports.logout_get = asyncHandler(async (req, res, next) => {
+	res.clearCookie("token").sendStatus(202);
+});

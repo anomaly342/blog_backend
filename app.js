@@ -6,6 +6,7 @@ const path = require("path");
 const cookieParser = require("cookie-parser");
 const logger = require("morgan");
 const jwt = require("jsonwebtoken");
+const cors = require("cors");
 
 const postRouter = require("./routes/post");
 const userRouter = require("./routes/user");
@@ -13,14 +14,14 @@ const KEY = process.env.KEY;
 const app = express();
 
 const verifyToken = async (req, res, next) => {
-	const authorization = req.headers["authorization"];
-	if (!authorization) {
-		req.token = null;
-		return next();
-	}
+	// const authorization = req.cookies.token;
+	// if (!authorization) {
+	// 	req.token = null;
+	// 	return next();
+	// }
 
-	const token = authorization.split(" ")[1];
-
+	const token = req.cookies.token;
+	
 	if (typeof token === "undefined") {
 		req.token = null;
 	}
@@ -40,7 +41,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
-
+// app.use(cors());
+app.use(function (req, res, next) {
+	res.setHeader("Access-Control-Allow-Origin", "https://localhost:3000");
+	res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
+	res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+	res.setHeader("Access-Control-Allow-Credentials", true);
+	next();
+});
 app.use(verifyToken);
 
 app.use("/posts", postRouter);

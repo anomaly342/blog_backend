@@ -21,7 +21,7 @@ const verifyToken = async (req, res, next) => {
 	// }
 
 	const token = req.cookies.token;
-	
+
 	if (typeof token === "undefined") {
 		req.token = null;
 	}
@@ -33,8 +33,6 @@ mongoose.connect(KEY).catch((err) => {
 	console.log(err);
 });
 app.use(express.static(__dirname + "/public"));
-app.set("views", path.join(__dirname, "views"));
-app.set("view engine", "jade");
 
 app.use(logger("dev"));
 app.use(express.json());

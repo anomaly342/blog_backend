@@ -131,5 +131,7 @@ exports.loggedin_get = asyncHandler(async (req, res, next) => {
 });
 
 exports.logout_get = asyncHandler(async (req, res, next) => {
-	res.clearCookie("token").sendStatus(202);
+	res
+		.clearCookie("token", { domain: ".cloudvista.dev", path: "/" })
+		.sendStatus(202);
 });

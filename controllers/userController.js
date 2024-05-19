@@ -57,6 +57,7 @@ exports.addUser_post = [
 							path: "/",
 							httpOnly: true,
 							secure: true,
+							domain: ".cloudvista.dev",
 							expires: new Date(Date.now() + 96 * 3600000),
 						})
 						.send("Suscess");
@@ -102,6 +103,7 @@ exports.login_post = [
 						path: "/",
 						httpOnly: true,
 						secure: true,
+						domain: ".cloudvista.dev",
 						expires: new Date(Date.now() + 96 * 3600000),
 					})
 					.send("Suscess");
